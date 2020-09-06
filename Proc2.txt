@@ -1,0 +1,23 @@
+CREATE OR REPLACE FUNCTION taxi.manager_math(pay_date TIMESTAMP, manager_s_id INTEGER) 
+RETURNS void AS $$
+DECLARE
+sum money;
+last_date timestamp;
+BEGIN
+CREATE TEMP TABLE calls(m_phone bigint,driver_id integer,data_time timestamp,ride_date timestamp) on commit drop;
+INSERT INTO calls
+SELECT mobilephone_number,driver_id,data_time
+FROM taxi.call
+WHERE manager_id = manager_s_id AND taxi.call.data_time <= pay_date 
+AND taxi.call.data_time >= to_timestamp(to_char(date_part('year',pay_date),'9999D')||'-'||to_char(date_part('month',pay_date),'99D'),'YYYY-MM');
+UPDATE calls
+SET ride_date = (SELECT ride_date FROM taxi.ticket WHERE ride_date > data_time AND mobile_phone = m_phone AND ticket.driver_id = calls.driver_id ORDER BY ride_date ASC LIMIT 1);
+sum := (SELECT SUM(payment) FROM taxi.ticket WHERE mobile_phone IN (SELECT m_phone FROM calls) AND driver_id IN (SELECT driver_id FROM calls) AND ride_date IN (SELECT ride_date FROM calls));
+IF (date_part('month',pay_date)) < 12 THEN
+sum := sum/20;
+ELSE
+sum := sum/10;
+END IF;
+UPDATE taxi.managers
+SET salary = sum WHERE manager = manager_s_id;
+END; $$ LANGUAGE 'plpgsql';

@@ -1,0 +1,44 @@
+SELECT driver_id,avg(complite_time) FROM (SELECT call.driver_id,age(ride_date,data_time) as complite_time,
+ROW_NUMBER() OVER(PARTITION BY (call.driver_id,ride_date) ORDER BY data_time)
+FROM taxi.call INNER JOIN taxi.ticket ON call.driver_id=ticket.driver_id 
+AND mobilephone_number=mobile_phone AND ride_date = (SELECT ride_date FROM taxi.ticket WHERE ride_date > data_time 
+AND mobile_phone = mobilephone_number AND ticket.driver_id = call.driver_id ORDER BY ride_date ASC LIMIT 1))
+AS t WHERE row_number=1 GROUP BY driver_id ORDER BY avg LIMIT 3;1
+
+
+WITH ask AS (SELECT driver_id,sum(payment) AS ttt, COUNT(DISTINCT ride_date) AS tt,
+row_number() OVER(ORDER BY COUNT(DISTINCT ride_date) DESC)
+FROM taxi.ticket WHERE ride_date>to_timestamp(to_char(date_part('year',CURRENT_TIMESTAMP),'9999D'),'YYYY') 
+GROUP BY driver_id ORDER BY tt DESC) 
+SELECT * FROM ask WHERE row_number = 1 OR ttt > (SELECT ttt FROM ask WHERE row_number=1);2
+
+
+SELECT taxi_num FROM (SELECT taxi_num,CAST(COUNT(*) as decimal)/CAST((SELECT taxi.capacity FROM taxi.taxi WHERE taxi_number=taxi_num) AS decimal) as tt 
+FROM taxi.lease_contract WHERE last_date IS NULL OR last_date>current_date GROUP BY taxi_num ORDER BY tt DESC LIMIT 1) AS t; 3
+
+
+WITH quest AS (SELECT manager_id,driver_id,count(*) as numberofcalls,
+CAST(count(*) as decimal)/CAST((SELECT count(manager_id) FROM taxi.call WHERE call.manager_id=tt.manager_id)AS decimal) AS partofcallsfordriver,
+ROW_NUMBER() OVER(PARTITION BY manager_id ORDER BY CAST(count(*) as decimal)/CAST((SELECT count(manager_id) 
+FROM taxi.call WHERE call.manager_id=tt.manager_id)AS decimal) DESC)
+FROM taxi.call AS tt GROUP BY manager_id,driver_id)
+SELECT manager_id,driver_id FROM quest AS tt WHERE partofcallsfordriver=1 OR ((SELECT partofcallsfordriver FROM QUEST WHERE quest.manager_id=tt.manager_id AND row_number=1)-
+(SELECT partofcallsfordriver FROM QUEST WHERE quest.manager_id=tt.manager_id AND row_number=2)) > 0.12 AND row_number=1; 4-1
+
+
+WITH quest AS (SELECT * FROM (SELECT manager_id,driver_id,count(*) as numberofcalls,
+CAST(count(*) as decimal)/CAST((SELECT count(manager_id) FROM taxi.call WHERE call.manager_id=tt.manager_id)AS decimal) AS partofcallsfordriver,
+ROW_NUMBER() OVER(PARTITION BY manager_id ORDER BY CAST(count(*) as decimal)/CAST((SELECT count(manager_id) 
+FROM taxi.call WHERE call.manager_id=tt.manager_id)AS decimal) DESC)
+FROM taxi.call AS tt GROUP BY manager_id,driver_id) AS tt1 WHERE row_number<=2) 
+SELECT manager_id,driver_id FROM
+(SELECT manager_id,driver_id,sum(partofcallsfordriver) OVER(PARTITION BY manager_id) AS t8,row_number FROM
+(SELECT * FROM quest WHERE  row_number=1
+UNION ALL
+SELECT  manager_id,driver_id,numberofcalls,(-1)*partofcallsfordriver,row_number FROM quest WHERE  row_number=2) AS t2 
+) as t3 WHERE t8>0.12 AND row_number=1 ; 4-2
+
+
+SELECT mobile_phone FROM (SELECT mobile_phone,(SELECT count(*) FROM taxi.ticket WHERE ticket.mobile_phone=mobile_phone AND date_part('month',ride_date) > 2 
+AND date_part('month',ride_date) < 9) AS ridespringsummer,(SELECT count(*) FROM taxi.ticket WHERE ticket.mobile_phone=mobile_phone AND date_part('month',ride_date)< 2 
+OR date_part('month',ride_date) > 9) AS rideautumnwinter FROM taxi.ticket GROUP BY mobile_phone) AS t WHERE ridespringsummer>rideautumnwinter ; 5   

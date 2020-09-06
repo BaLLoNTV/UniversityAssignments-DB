@@ -1,0 +1,20 @@
+CREATE OR REPLACE FUNCTION taxi.close_lease(start_time DATE) 
+RETURNS void AS $$
+BEGIN
+CREATE TEMP TABLE contracts_to_close(driver_id INT,car_reg_num char(56), first_date DATE, last_date DATE);
+INSERT INTO contracts_to_close
+SELECT driver_id,car_reg_num, first_date, last_date FROM taxi.lease_contract
+WHERE last_date < start_time
+AND lease_closed = 0;
+
+UPDATE taxi.lease_contract 
+SET lease_closed = 1
+WHERE driver_id  IN (SELECT driver_id FROM contracts_to_close) AND car_reg_num IN (SELECT car_reg_num FROM contracts_to_close);
+
+UPDATE taxi.call
+SET lease_closed = 1
+FROM contracts_to_close
+WHERE taxi.call.driver_id = contracts_to_close.driver_id
+AND taxi.call.data_time > contracts_to_close.first_date AND taxi.call.data_time < contracts_to_close.last_date;
+DROP TABLE contracts_to_close;
+END; $$ LANGUAGE 'plpgsql';

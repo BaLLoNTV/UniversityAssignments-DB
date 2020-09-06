@@ -1,0 +1,95 @@
+CREATE TABLE taxi.taxi
+(
+  taxi_number serial primary key,
+  adress character(256) not null,
+  ownerr character(100) not null,
+  capacity integer not null
+);
+
+CREATE TABLE taxi.managers
+(
+  manager serial primary key ,
+  taxi_number integer references taxi.taxi(taxi_number) not null,
+  iname character(56) not null,
+  last_name character(56) not null,
+  middle_name character(56) not null,
+  salary money not null
+);
+
+CREATE TABLE taxi.castomer
+(
+  m_phone bigint primary key,
+  iname character(56) not null,
+  last_name character(65) not null,
+  b_c_number bigint not null,
+  email character(56) not null,
+  debt money not null
+);
+
+CREATE TABLE taxi.drivers
+(
+  driver_id serial primary key,
+  iname character(56) not null,
+  last_name character(56) not null,
+  born_date date not null,
+  taxi_id integer references taxi.taxi(taxi_number) not null
+);
+
+CREATE TABLE taxi.ticket
+(
+  ticket_id serial primary key,
+  mobile_phone bigint references taxi.castomer (m_phone) not null,
+  driver_id integer references taxi.drivers (driver_id) ,
+  taxi_number integer references taxi.taxi (taxi_number) not null,
+  payment money not null,
+  ride_date timestamp not null
+);
+
+
+create table taxi.call
+( call_id serial,
+mobilephone_number bigint references taxi.castomer(m_phone),
+manager_id integer references taxi.managers(manager) not null,
+car_type char(56) not null,
+user_place char(256) not null, 
+pay_type char(12) not null,
+low_price money not null,
+data_time timestamp not null,
+driver_id integer references taxi.drivers(driver_id),
+lease_closed integer not null default 0,
+primary key ( call_id, mobilephone_number ) 
+);
+
+CREATE TABLE taxi.car
+(
+  car_reg_num character(56) primary key,
+  car_num serial not null,
+  car_model character(56) not null,
+  car_type character(12) not null,
+  taxi_num integer references taxi.taxi (taxi_number) not null,
+  ownerr character(6) not null,
+  driver_num integer references taxi.drivers (driver_id),
+  car_rate money not null
+);
+
+CREATE TABLE taxi.car_driver_connect
+(
+  car_conect_num serial primary key,
+  car_reg_num character(56) references taxi.car (car_reg_num) not null,
+  driver_id integer references taxi.drivers (driver_id) not null,
+  out_of_garage timestamp not null,
+  back_to_garage timestamp
+);
+
+CREATE TABLE taxi.lease_contract
+(
+  driver_id integer references taxi.drivers (driver_id) not null,
+  car_reg_num character(56) references taxi.car (car_reg_num) not null,
+  taxi_num integer references taxi.taxi (taxi_number) not null,
+  contract_type character(9) not null,
+  first_date date not null,
+  last_date date not null,
+  month_payment money not null,
+  lease_closed integer not null default 0,
+  PRIMARY KEY (driver_id, car_reg_num)
+);

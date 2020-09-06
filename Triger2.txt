@@ -1,0 +1,19 @@
+CREATE OR REPLACE FUNCTION taxi.func_sallary_lease() RETURNS TRIGGER
+AS $$
+ 
+DECLARE
+    last_5year_earnings money;
+    last_month_earnings money;
+ 
+BEGIN
+    
+    last_month_earnings := (SELECT SUM(payment) FROM taxi.ticket WHERE age(current_timestamp,ride_date) < '1 month' AND driver_id = NEW.driver_id); 
+    IF NEW.month_payment > (last_month_earnings / 2) THEN
+        RAISE EXCEPTION 'Leasing is unprofitable';
+    END IF;
+    RETURN NEW;
+END; $$ LANGUAGE plpgsql;
+ 
+CREATE TRIGGER sallary_lease BEFORE INSERT OR UPDATE
+ON taxi.lease_contract
+FOR EACH ROW EXECUTE PROCEDURE taxi.func_sallary_lease();

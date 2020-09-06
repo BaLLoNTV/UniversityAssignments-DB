@@ -1,0 +1,22 @@
+CREATE OR REPLACE FUNCTION taxi.func_call_driver_connection() RETURNS TRIGGER
+AS $$
+ 
+DECLARE
+    last_check_time timestamp;
+    last_call_time timestamp;
+ 
+BEGIN
+    
+    last_call_time := (SELECT data_time FROM taxi.call WHERE driver_id = NEW.driver_id GROUP BY data_time ORDER BY data_time DESC LIMIT 1);
+    last_check_time := (SELECT ride_date FROM taxi.ticket WHERE driver_id = NEW.driver_id GROUP BY ride_date ORDER BY ride_date DESC LIMIT 1); 
+    IF last_check_time IS NULL AND last_call_time IS NOT NULL THEN
+    RAISE EXCEPTION 'Driver is on the way';
+    ELSIF last_call_time>last_check_time THEN
+    RAISE EXCEPTION 'Driver is on the way';
+    END IF;
+    RETURN NEW;
+END; $$ LANGUAGE plpgsql;
+ 
+CREATE TRIGGER call_driver_connection BEFORE INSERT OR UPDATE
+ON taxi.call
+FOR EACH ROW EXECUTE PROCEDURE taxi.func_call_driver_connection();
